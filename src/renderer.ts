@@ -43,10 +43,6 @@ let tutorialCompleted = false;
 let currentStep = 1;
 const totalSteps = 3;
 
-// Add these variables at the top with other state variables
-let lastValidatedPeriodStart: string | null = null;
-let lastValidatedStatus: string | null = null;
-
 // Function to format date string
 function formatDate(dateString: string): string {
     const date = new Date(dateString);
@@ -122,7 +118,6 @@ function updateApprovalStatus(status: string | null) {
 // Function to check if today is the validation day
 function checkIfValidationDay() {
     const today = new Date();
-    console.log(VALIDATION_DAY);
     weAreOnMOnday = today.getDay() === VALIDATION_DAY;
     console.log(`Is it the validation day (${DAY_NAMES[VALIDATION_DAY]})?`, weAreOnMOnday);
 }
@@ -181,15 +176,6 @@ async function fetchApiData(forceFetch = false) {
     try {
         if ((forceFetch || weAreOnMOnday) && apiKey && isApiKeyValidated && defaultWorkspace && userId) {
             const sundayBeforeLast = getSundayBeforeLast();
-            
-            // Skip API call if we already validated this period and it was approved
-            if (!forceFetch && 
-                lastValidatedPeriodStart === sundayBeforeLast && 
-                lastValidatedStatus === 'APPROVED') {
-                console.log('Skipping API call - period already validated and approved');
-                return;
-            }
-
             const apiUrl = API_ENDPOINTS.APPROVAL_STATUS(defaultWorkspace, userId, sundayBeforeLast);
             const response = await fetch(apiUrl, {
                 headers: {
@@ -207,11 +193,6 @@ async function fetchApiData(forceFetch = false) {
                 approvedCount: data?.approvedCount || 0,
                 entriesCount: data?.entriesCount || 0
             };
-            
-            // Store the validated period info
-            lastValidatedPeriodStart = sundayBeforeLast;
-            lastValidatedStatus = currentApprovalStatus;
-            
             updateApprovalStatus(currentApprovalStatus);
             
             if(data && data.status === null) {
@@ -233,7 +214,6 @@ async function fetchApiData(forceFetch = false) {
 
 // Function to initialize API key from storage and validate it
 async function initializeApiKey() {
-    console.log(123123);
     updateApiKeyStatus(null);
     const storedKey = await window.electronAPI.getApiKey();
     const apiKeyInput = document.getElementById('apiKey') as HTMLInputElement;
@@ -352,10 +332,6 @@ async function clearAllData() {
         
         showStep(1);
         alert('All data has been cleared successfully.');
-
-        // Reset validation tracking
-        lastValidatedPeriodStart = null;
-        lastValidatedStatus = null;
     } catch (error) {
         console.error('Error clearing data:', error);
         alert('An error occurred while clearing data. Please try again.');

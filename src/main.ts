@@ -3,6 +3,9 @@ import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import Store from 'electron-store';
 import dotenv from 'dotenv';
+import iconData from '../images/favicon-32x32.png';
+
+
 
 // Load environment variables
 dotenv.config();
@@ -64,45 +67,50 @@ const createWindow = () => {
     mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
   }
 
-  // Create tray icon
-  const iconPath = process.platform === 'darwin' 
-    ? './favicon-32x32.png' // macOS icon path
-    : './favicon-32x32.png'; // Windows icon path
-    
-  const icon = nativeImage.createFromPath(iconPath);
-  const tray = new Tray(icon);
-  
-  // Set tooltip
-  tray.setToolTip('Clockify Timesheet Monitor');
 
-  // Create context menu
-  const contextMenu = Menu.buildFromTemplate([
-    { 
-      label: 'Show Window', 
-      click: () => {
-        mainWindow.show();
-      }
-    },
-    { type: 'separator' },
-    { role: "quit" }
-  ]);
-  
-  tray.setContextMenu(contextMenu);
-  
+
+  try {
+    const icon = nativeImage.createFromDataURL(iconData);
+    if (icon.isEmpty()) {
+      console.error(`Failed to load tray icon: ${iconPath}. Icon is empty.`);
+    } else {
+      const tray = new Tray(icon);
+
+      // Set tooltip
+      tray.setToolTip('Clockify Timesheet Monitor');
+
+      // Create context menu
+      const contextMenu = Menu.buildFromTemplate([
+        {
+          label: 'Show Window',
+          click: () => {
+            mainWindow.show();
+          }
+        },
+        { type: 'separator' },
+        { role: "quit" }
+      ]);
+
+      tray.setContextMenu(contextMenu);
+
+      // Handle tray click
+      tray.on('click', () => {
+        if (process.platform === 'darwin') {
+          // On macOS, show the window on tray click
+          mainWindow.show();
+        }
+      });
+    }
+  } catch (error) {
+    console.error(`Error creating tray icon from path ${iconPath}:`, error);
+  }
+
   // Handle window close event
   mainWindow.on('close', (event) => {
     if (process.platform === 'darwin') {
       // On macOS, just hide the window instead of closing
       event.preventDefault();
       mainWindow.hide();
-    }
-  });
-  
-  // Handle tray click
-  tray.on('click', () => {
-    if (process.platform === 'darwin') {
-      // On macOS, show the window on tray click
-      mainWindow.show();
     }
   });
 };

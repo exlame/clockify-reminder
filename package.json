@@ -1,8 +1,8 @@
 {
-  "name": "my-new-app",
-  "productName": "my-new-app",
+  "name": "clockify-reminder",
+  "productName": "clockify-reminder",
   "version": "1.0.0",
-  "description": "My Electron application description",
+  "description": "Clockify reminder",
   "main": ".vite/build/main.js",
   "scripts": {
     "start": "electron-forge start",
