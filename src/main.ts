@@ -64,11 +64,6 @@ const createWindow = () => {
     mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
   }
 
-  // Open the DevTools only if not starting hidden
-  if (!isStartingHidden) {
-    mainWindow.webContents.openDevTools();
-  }
-
   // Create tray icon
   const iconPath = process.platform === 'darwin' 
     ? './favicon-32x32.png' // macOS icon path
