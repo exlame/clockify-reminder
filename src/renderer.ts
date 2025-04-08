@@ -27,34 +27,170 @@
  */
 
 import './index.css';
+import { REFRESH_INTERVAL_SECONDS, VALIDATION_DAY, API_ENDPOINTS, DAY_NAMES, setupRefreshInterval, CUSTOM_START_DATE } from './config';
 
 let weAreOnMOnday = false;
 let apiKey: string | null = null;
+let isApiKeyValidated = false;
+let defaultWorkspace: string | null = null;
+let userId: string | null = null;
+let currentApprovalStatus: string | null = null;
+let currentDateRange: { start: string; end: string } | null = null;
+let currentStatusInfo: { total: string; approvedCount: number; entriesCount: number } | null = null;
+let tutorialCompleted = false;
 
-// Function to check if today is Monday
-function checkIfMonday() {
+// Tutorial navigation
+let currentStep = 1;
+const totalSteps = 3;
+
+// Add these variables at the top with other state variables
+let lastValidatedPeriodStart: string | null = null;
+let lastValidatedStatus: string | null = null;
+
+// Function to format date string
+function formatDate(dateString: string): string {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+// Function to update the API key status display
+function updateApiKeyStatus(isValid: boolean | null) {
+    const statusElement = document.getElementById('apiKeyStatus');
+    if (statusElement) {
+        statusElement.className = 'api-key-status';
+        if (isValid === null) {
+            statusElement.classList.add('status-unknown');
+            statusElement.textContent = 'Checking API key...';
+        } else if (isValid) {
+            statusElement.classList.add('status-valid');
+            statusElement.textContent = 'API key is valid';
+        } else {
+            statusElement.classList.add('status-invalid');
+            statusElement.textContent = 'API key is invalid';
+        }
+    }
+}
+
+// Function to update the approval status display
+function updateApprovalStatus(status: string | null) {
+    const statusElements = ['approvalStatus', 'dashboardApprovalStatus'];
+    const dateRangeElements = ['dateRange', 'dashboardDateRange'];
+    const statusInfoElements = ['statusInfo', 'dashboardStatusInfo'];
+    
+    statusElements.forEach(elementId => {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.classList.remove('status-null', 'status-pending', 'status-approved', 'status-other');
+            
+            if (status === null) {
+                element.classList.add('status-null');
+                element.textContent = 'NOT SUBMITTED';
+            } else if (status === 'PENDING') {
+                element.classList.add('status-pending');
+                element.textContent = 'PENDING APPROVAL';
+            } else if (status === 'APPROVED') {
+                element.classList.add('status-approved');
+                element.textContent = 'APPROVED';
+            } else {
+                element.classList.add('status-other');
+                element.textContent = status || 'UNKNOWN';
+            }
+        }
+    });
+
+    dateRangeElements.forEach(elementId => {
+        const element = document.getElementById(elementId);
+        if (element && currentDateRange) {
+            element.textContent = `Period: ${formatDate(currentDateRange.start)} - ${formatDate(currentDateRange.end)}`;
+        }
+    });
+
+    statusInfoElements.forEach(elementId => {
+        const element = document.getElementById(elementId);
+        if (element && currentStatusInfo) {
+            element.textContent = `Total Hours: ${currentStatusInfo.total} | Approved Entries: ${currentStatusInfo.approvedCount}/${currentStatusInfo.entriesCount}`;
+        }
+    });
+}
+
+// Function to check if today is the validation day
+function checkIfValidationDay() {
     const today = new Date();
-    weAreOnMOnday = today.getDay() === 2; // 1 represents Monday
-    console.log('Is it Monday?', weAreOnMOnday);
+    console.log(VALIDATION_DAY);
+    weAreOnMOnday = today.getDay() === VALIDATION_DAY;
+    console.log(`Is it the validation day (${DAY_NAMES[VALIDATION_DAY]})?`, weAreOnMOnday);
 }
 
 // Function to get the Sunday before the last Sunday
 function getSundayBeforeLast() {
+    // If a custom start date is set, use it
+    if (CUSTOM_START_DATE) {
+        // Format the date to include timezone information
+        const customDate = new Date(CUSTOM_START_DATE);
+        // Set the time to midnight UTC
+        customDate.setUTCHours(0, 0, 0, 0);
+        return customDate.toISOString();
+    }
+    
+    // Otherwise, calculate the Sunday before last
     const today = new Date();
     const day = today.getDay(); // 0 is Sunday, 1 is Monday, etc.
     const diffToLastSunday = day === 0 ? 7 : day; // Adjust for Sunday being 0
-    const lastSunday = new Date(today);
-    lastSunday.setDate(today.getDate() - diffToLastSunday);
-    lastSunday.setHours(0, 0, 0, 0); // Set time to midnight
-    return lastSunday.toISOString();
+    const lastPeriodStart = new Date(today);
+    lastPeriodStart.setDate(today.getDate() - 7 - diffToLastSunday);
+    lastPeriodStart.setHours(0, 0, 0, 0); // Set time to midnight
+    return lastPeriodStart.toISOString();
+}
+
+// Function to validate API key
+async function validateApiKey(key: string): Promise<boolean> {
+    try {
+        const response = await fetch(API_ENDPOINTS.USER_INFO, {
+            headers: {
+                'X-Api-Key': key
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            defaultWorkspace = data.defaultWorkspace;
+            userId = data.id;
+            console.log('User workspace:', defaultWorkspace);
+            console.log('User ID:', userId);
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('Error validating API key:', error);
+        return false;
+    }
 }
 
 // Function to call the API
-async function fetchApiData() {
+async function fetchApiData(forceFetch = false) {
+    if (!forceFetch) {
+        checkIfValidationDay();
+    }
+    
     try {
-        if (weAreOnMOnday && apiKey) {
+        if ((forceFetch || weAreOnMOnday) && apiKey && isApiKeyValidated && defaultWorkspace && userId) {
             const sundayBeforeLast = getSundayBeforeLast();
-            const apiUrl = `https://app.clockify.me/api/workspaces/64e8851766b77570d788cf3f/users/671be8c7391d37193731d979/approval-requests/status?start=${sundayBeforeLast}`;
+            
+            // Skip API call if we already validated this period and it was approved
+            if (!forceFetch && 
+                lastValidatedPeriodStart === sundayBeforeLast && 
+                lastValidatedStatus === 'APPROVED') {
+                console.log('Skipping API call - period already validated and approved');
+                return;
+            }
+
+            const apiUrl = API_ENDPOINTS.APPROVAL_STATUS(defaultWorkspace, userId, sundayBeforeLast);
             const response = await fetch(apiUrl, {
                 headers: {
                     'X-Api-Key': apiKey
@@ -62,44 +198,270 @@ async function fetchApiData() {
             });
             const data = await response.json();
             console.log('API Data:', data);
+            
+            // Update the approval status display
+            currentApprovalStatus = data?.status || null;
+            currentDateRange = data?.dateRange || null;
+            currentStatusInfo = {
+                total: data?.total || '0H',
+                approvedCount: data?.approvedCount || 0,
+                entriesCount: data?.entriesCount || 0
+            };
+            
+            // Store the validated period info
+            lastValidatedPeriodStart = sundayBeforeLast;
+            lastValidatedStatus = currentApprovalStatus;
+            
+            updateApprovalStatus(currentApprovalStatus);
+            
             if(data && data.status === null) {
                 window.electronAPI.openPopup();
             }
+        } else {
+            // If we can't fetch data, show a message
+            currentDateRange = null;
+            currentStatusInfo = null;
+            updateApprovalStatus(null);
         }
     } catch (error) {
         console.error('Error fetching API data:', error);
+        currentDateRange = null;
+        currentStatusInfo = null;
+        updateApprovalStatus(null);
     }
 }
 
-// Initialize the API key from storage
+// Function to initialize API key from storage and validate it
 async function initializeApiKey() {
-    apiKey = await window.electronAPI.getApiKey();
-    if (apiKey) {
-        document.getElementById('apiKey')?.setAttribute('value', apiKey);
+    console.log(123123);
+    updateApiKeyStatus(null);
+    const storedKey = await window.electronAPI.getApiKey();
+    const apiKeyInput = document.getElementById('apiKey') as HTMLInputElement;
+    const prefilledMessage = document.getElementById('prefilledMessage');
+    
+    if (storedKey) {
+        apiKey = storedKey;
+        apiKeyInput.value = storedKey;
+        isApiKeyValidated = await validateApiKey(storedKey);
+        updateApiKeyStatus(isApiKeyValidated);
+        
+        if (isApiKeyValidated) {
+            console.log('API key validated successfully on startup');
+            if (prefilledMessage) {
+                prefilledMessage.style.display = 'block';
+            }
+            // Check if tutorial was completed before
+            const tutorialSteps = document.getElementById('tutorialSteps');
+            const dashboardView = document.getElementById('dashboardView');
+            
+            if (tutorialSteps && dashboardView) {
+                tutorialSteps.classList.add('hidden');
+                dashboardView.classList.remove('hidden');
+                tutorialCompleted = true;
+            }
+            fetchApiData(true);
+        } else {
+            // Clear invalid key
+            apiKey = null;
+            defaultWorkspace = null;
+            userId = null;
+            apiKeyInput.value = '';
+            await window.electronAPI.saveApiKey('');
+            console.log('Invalid API key found on startup, cleared from storage');
+        }
+    } else {
+        updateApiKeyStatus(false);
+        console.log('No API key found in storage');
     }
 }
 
-// Set up event listeners
-document.addEventListener('DOMContentLoaded', () => {
-    initializeApiKey();
-    
+// Tutorial navigation
+function updateTutorialNavigation() {
+    const prevButton = document.getElementById('prevStep');
+    const nextButton = document.getElementById('nextStep');
+    const closeButton = document.getElementById('closeWindow');
+
+    if (prevButton) {
+        prevButton.classList.toggle('hidden', currentStep === 1);
+    }
+
+    if (nextButton) {
+        // Hide next button on step 3
+        nextButton.classList.toggle('hidden', currentStep === totalSteps);
+    }
+
+    if (closeButton) {
+        closeButton.classList.toggle('hidden', currentStep !== totalSteps);
+    }
+}
+
+function showStep(step: number) {
+    // Hide all steps
+    for (let i = 1; i <= totalSteps; i++) {
+        const stepElement = document.getElementById(`tutorialStep${i}`);
+        if (stepElement) {
+            stepElement.classList.remove('active');
+        }
+    }
+
+    // Show current step
+    const currentStepElement = document.getElementById(`tutorialStep${step}`);
+    if (currentStepElement) {
+        currentStepElement.classList.add('active');
+    }
+
+    currentStep = step;
+    updateTutorialNavigation();
+}
+
+// Function to clear all data
+async function clearAllData() {
+    try {
+        // Clear API key
+        await window.electronAPI.saveApiKey('');
+        apiKey = null;
+        isApiKeyValidated = false;
+        defaultWorkspace = null;
+        userId = null;
+
+        // Clear UI elements
+        const apiKeyInput = document.getElementById('apiKey') as HTMLInputElement;
+        const prefilledMessage = document.getElementById('prefilledMessage');
+        const approvalStatus = document.getElementById('approvalStatus');
+        const dateRange = document.getElementById('dateRange');
+        const statusInfo = document.getElementById('statusInfo');
+
+        if (apiKeyInput) apiKeyInput.value = '';
+        if (prefilledMessage) prefilledMessage.style.display = 'none';
+        if (approvalStatus) approvalStatus.textContent = 'Checking status...';
+        if (dateRange) dateRange.textContent = '';
+        if (statusInfo) statusInfo.textContent = '';
+
+        // Update API key status
+        updateApiKeyStatus(false);
+        
+        // Show tutorial and hide dashboard
+        const tutorialSteps = document.getElementById('tutorialSteps');
+        const dashboardView = document.getElementById('dashboardView');
+        
+        if (tutorialSteps && dashboardView) {
+            tutorialSteps.classList.remove('hidden');
+            dashboardView.classList.add('hidden');
+            tutorialCompleted = false;
+        }
+        
+        showStep(1);
+        alert('All data has been cleared successfully.');
+
+        // Reset validation tracking
+        lastValidatedPeriodStart = null;
+        lastValidatedStatus = null;
+    } catch (error) {
+        console.error('Error clearing data:', error);
+        alert('An error occurred while clearing data. Please try again.');
+    }
+}
+
+// Create a function for setting up event listeners
+function setupEventListeners() {
     const saveButton = document.getElementById('saveApiKey');
     const apiKeyInput = document.getElementById('apiKey') as HTMLInputElement;
+    const clearDataButton = document.getElementById('clearData');
+    const prevButton = document.getElementById('prevStep');
+    const nextButton = document.getElementById('nextStep');
+    const closeButton = document.getElementById('closeWindow');
     
+    // Clear data button
+    clearDataButton?.addEventListener('click', async () => {
+        if (confirm('Are you sure you want to clear all data? This action cannot be undone.')) {
+            await clearAllData();
+        }
+    });
+
+    // API Key save button
     saveButton?.addEventListener('click', async () => {
         const newApiKey = apiKeyInput?.value;
         if (newApiKey) {
-            await window.electronAPI.saveApiKey(newApiKey);
-            apiKey = newApiKey;
-            alert('API key saved successfully!');
+            updateApiKeyStatus(null);
+            const isValid = await validateApiKey(newApiKey);
+            updateApiKeyStatus(isValid);
+            
+            if (isValid) {
+                await window.electronAPI.saveApiKey(newApiKey);
+                apiKey = newApiKey;
+                isApiKeyValidated = true;
+                alert('API key validated and saved successfully!');
+                fetchApiData(true);
+            } else {
+                alert('Invalid API key. Please check and try again.');
+                apiKeyInput.value = '';
+                defaultWorkspace = null;
+                userId = null;
+            }
         }
     });
-});
 
-checkIfMonday();
-fetchApiData();
+    // Navigation buttons
+    prevButton?.addEventListener('click', () => {
+        if (currentStep > 1) {
+            showStep(currentStep - 1);
+        }
+    });
 
-// Set up an interval to call the API every 1 minute
-setInterval(fetchApiData, 1 * 20 * 1000);
+    nextButton?.addEventListener('click', () => {
+        console.log('Next button clicked, current step:', currentStep);
+        if (currentStep < totalSteps) {
+            if (currentStep === 1 && !isApiKeyValidated) {
+                alert('Please enter and validate your API key first');
+                return;
+            }
+            console.log('Moving to step:', currentStep + 1);
+            showStep(currentStep + 1);
+        }
+    });
+
+    // Close window button
+    closeButton?.addEventListener('click', () => {
+        const tutorialSteps = document.getElementById('tutorialSteps');
+        const dashboardView = document.getElementById('dashboardView');
+        
+        if (tutorialSteps && dashboardView) {
+            tutorialSteps.classList.add('hidden');
+            dashboardView.classList.remove('hidden');
+            tutorialCompleted = true;
+        }
+        
+        window.electronAPI.closeWindow();
+    });
+
+    // Add dashboard close button handler
+    const dashboardClose = document.getElementById('dashboardClose');
+    dashboardClose?.addEventListener('click', () => {
+        window.electronAPI.closeWindow();
+    });
+}
+
+// Modify the initialization logic to run only once
+console.log('Renderer script loaded');
+if (document.readyState === 'loading') {
+    console.log('Document still loading, waiting for DOMContentLoaded');
+    document.addEventListener('DOMContentLoaded', async () => {
+        console.log('DOMContentLoaded event fired');
+        await initializeApiKey();
+        setupEventListeners();
+        updateTutorialNavigation();
+        // Set up the refresh interval
+        setupRefreshInterval(() => fetchApiData(false));
+    });
+} else {
+    console.log('Document already loaded, initializing manually');
+    (async () => {
+        await initializeApiKey();
+        setupEventListeners();
+        updateTutorialNavigation();
+        // Set up the refresh interval
+        setupRefreshInterval(() => fetchApiData(false));
+    })();
+}
 
 console.log('👋 This message is being logged by "renderer.ts", included via Vite');

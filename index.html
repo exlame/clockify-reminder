@@ -2,16 +2,304 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>Hello World!</title>
+    <title>Clockify Timesheet Monitor</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: #f5f5f5;
+        color: #333;
+      }
 
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: white;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      h1 {
+        color: #2c3e50;
+        margin-bottom: 30px;
+        text-align: center;
+      }
+
+      .tutorial-step {
+        display: none;
+        margin-bottom: 30px;
+        padding: 20px;
+        border-radius: 8px;
+        background-color: #f8f9fa;
+        border-left: 4px solid #3498db;
+      }
+
+      .tutorial-step.active {
+        display: block;
+      }
+
+      .step-number {
+        font-weight: bold;
+        color: #3498db;
+        margin-bottom: 10px;
+      }
+
+      .step-title {
+        font-size: 1.2em;
+        margin-bottom: 15px;
+        color: #2c3e50;
+      }
+
+      .step-description {
+        margin-bottom: 15px;
+        line-height: 1.5;
+      }
+
+      .step-action {
+        margin-top: 15px;
+      }
+
+      .api-key-section {
+        margin-bottom: 30px;
+      }
+
+      .api-key-input {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+      }
+
+      .api-key-status {
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 10px;
+        font-weight: 500;
+      }
+
+      .status-unknown {
+        background-color: #f8f9fa;
+        color: #6c757d;
+      }
+
+      .status-valid {
+        background-color: #d4edda;
+        color: #155724;
+      }
+
+      .status-invalid {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+
+      .status-container {
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 8px;
+        background-color: #f8f9fa;
+      }
+
+      .approval-status {
+        font-size: 1.2em;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+
+      .status-null {
+        color: #dc3545;
+      }
+
+      .status-pending {
+        color: #ffc107;
+      }
+
+      .status-approved {
+        color: #28a745;
+      }
+
+      .status-other {
+        color: #6c757d;
+      }
+
+      .date-range {
+        color: #6c757d;
+        margin-bottom: 5px;
+      }
+
+      .status-info {
+        color: #6c757d;
+        font-size: 0.9em;
+      }
+
+      button {
+        background-color: #3498db;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background-color 0.2s;
+      }
+
+      button:hover {
+        background-color: #2980b9;
+      }
+
+      .navigation-buttons {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 20px;
+      }
+
+      .navigation-buttons button {
+        flex: 1;
+        margin: 0 5px;
+      }
+
+      .navigation-buttons button:first-child {
+        margin-left: 0;
+      }
+
+      .navigation-buttons button:last-child {
+        margin-right: 0;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      .prefilled-message {
+        margin-top: 10px;
+        padding: 10px;
+        border-radius: 4px;
+        background-color: #f8f9fa;
+        border-left: 4px solid #3498db;
+      }
+
+      .button-group {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .danger-button {
+        background-color: #dc3545;
+      }
+
+      .danger-button:hover {
+        background-color: #c82333;
+      }
+
+      .clear-data-container {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 20px;
+      }
+
+      #dashboardView {
+        background-color: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      #dashboardView .status-container {
+        margin-bottom: 20px;
+      }
+
+      #dashboardView .button-group {
+        display: flex;
+        justify-content: flex-end;
+      }
+    </style>
   </head>
   <body>
-    <h1>💖 Hello World!</h1>
-    <p>Welcome to your Electron application.</p>
-    <div id="apiKeyForm">
-      <input type="password" id="apiKey" placeholder="Enter your Clockify API Key" />
-      <button id="saveApiKey">Save API Key</button>
+    <div class="container">
+      <h1>Clockify Timesheet Monitor</h1>
+
+      <!-- Clear All Data Button (Always Visible) -->
+      <div class="clear-data-container">
+        <button id="clearData" class="danger-button">Clear All Data</button>
+      </div>
+
+      <!-- Tutorial Steps -->
+      <div id="tutorialSteps" class="hidden">
+        <div id="tutorialStep1" class="tutorial-step active">
+          <div class="step-number">Step 1</div>
+          <div class="step-title">Setup Your API Key</div>
+          <div class="step-description">
+            To monitor your timesheet submissions, you'll need to provide your Clockify API key. 
+            You can find your API key in your Clockify profile settings.
+            <div id="prefilledMessage" class="prefilled-message" style="display: none;">
+              <strong>Note:</strong> Your previously saved API key has been loaded. You can update it if needed.
+            </div>
+          </div>
+          <div class="step-action">
+            <div class="api-key-section">
+              <input type="password" id="apiKey" class="api-key-input" placeholder="Enter your Clockify API key" />
+              <div id="apiKeyStatus" class="api-key-status status-unknown">Checking API key...</div>
+              <div class="button-group">
+                <button id="saveApiKey">Save API Key</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="tutorialStep2" class="tutorial-step">
+          <div class="step-number">Step 2</div>
+          <div class="step-title">Check Your Timesheet Status</div>
+          <div class="step-description">
+            Your timesheet status will be displayed below. The app will automatically check your status 
+            every 5 minutes and notify you if your timesheet hasn't been submitted.
+          </div>
+          <div class="step-action">
+            <div class="status-container">
+              <div id="approvalStatus" class="approval-status">Checking status...</div>
+              <div id="dateRange" class="date-range"></div>
+              <div id="statusInfo" class="status-info"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="tutorialStep3" class="tutorial-step">
+          <div class="step-number">Step 3</div>
+          <div class="step-title">Background Operation</div>
+          <div class="step-description">
+            The app will continue running in the background, monitoring your timesheet status. 
+            You can find it in your system tray (bottom right corner). To quit the app, 
+            right-click the tray icon and select "Quit".
+          </div>
+          <div class="step-action">
+            <button id="closeWindow">Close Window</button>
+          </div>
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="navigation-buttons">
+          <button id="prevStep" class="hidden">Previous</button>
+          <button id="nextStep">Next</button>
+        </div>
+      </div>
+
+      <!-- Dashboard View -->
+      <div id="dashboardView" class="hidden">
+        <div class="status-container">
+          <div id="dashboardApprovalStatus" class="approval-status">Checking status...</div>
+          <div id="dashboardDateRange" class="date-range"></div>
+          <div id="dashboardStatusInfo" class="status-info"></div>
+        </div>
+        <div class="button-group">
+          <button id="dashboardClose">Close Window</button>
+        </div>
+      </div>
     </div>
+
+    <!-- Load the renderer script -->
     <script type="module" src="/src/renderer.ts"></script>
   </body>
 </html>
