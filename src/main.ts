@@ -4,8 +4,8 @@ import started from 'electron-squirrel-startup';
 import Store from 'electron-store';
 import dotenv from 'dotenv';
 import iconData from '../images/favicon-32x32.png';
-
-
+import { updateElectronApp } from 'update-electron-app';
+updateElectronApp(); // additional configuration options available
 
 // Load environment variables
 dotenv.config();
