@@ -1,6 +1,6 @@
 {
   "name": "clockify-reminder",
-  "productName": "clockify-reminder",
+  "productName": "Clockify reminder",
   "version": "1.0.1",
   "description": "Clockify reminder",
   "main": ".vite/build/main.js",

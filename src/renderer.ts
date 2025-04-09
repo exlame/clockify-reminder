@@ -214,10 +214,17 @@ async function fetchApiData(forceFetch = false) {
 
 // Function to initialize API key from storage and validate it
 async function initializeApiKey() {
+    console.log('Initializing API key');
     updateApiKeyStatus(null);
     const storedKey = await window.electronAPI.getApiKey();
     const apiKeyInput = document.getElementById('apiKey') as HTMLInputElement;
     const prefilledMessage = document.getElementById('prefilledMessage');
+    const tutorialSteps = document.getElementById('tutorialSteps');
+    const dashboardView = document.getElementById('dashboardView');
+    
+    // Initially hide dashboard and show tutorial steps
+    if (dashboardView) dashboardView.classList.add('hidden');
+    if (tutorialSteps) tutorialSteps.classList.remove('hidden');
     
     if (storedKey) {
         apiKey = storedKey;
@@ -230,28 +237,29 @@ async function initializeApiKey() {
             if (prefilledMessage) {
                 prefilledMessage.style.display = 'block';
             }
-            // Check if tutorial was completed before
-            const tutorialSteps = document.getElementById('tutorialSteps');
-            const dashboardView = document.getElementById('dashboardView');
             
-            if (tutorialSteps && dashboardView) {
-                tutorialSteps.classList.add('hidden');
+            // Show dashboard if API key is valid
+            if (dashboardView && tutorialSteps) {
                 dashboardView.classList.remove('hidden');
+                tutorialSteps.classList.add('hidden');
                 tutorialCompleted = true;
             }
             fetchApiData(true);
         } else {
-            // Clear invalid key
+            // Clear invalid key and show tutorial step 1
             apiKey = null;
             defaultWorkspace = null;
             userId = null;
             apiKeyInput.value = '';
             await window.electronAPI.saveApiKey('');
             console.log('Invalid API key found on startup, cleared from storage');
+            showStep(1);
         }
     } else {
+        // No API key found, show tutorial step 1
         updateApiKeyStatus(false);
         console.log('No API key found in storage');
+        showStep(1);
     }
 }
 
