@@ -49,9 +49,12 @@ setAutoLaunch();
 // Track if we're starting hidden
 const isStartingHidden = process.argv.includes('--hidden');
 
+let mainWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
+
 const createWindow = () => {
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
     show: !isStartingHidden, // Hide window if starting with --hidden flag
@@ -67,14 +70,28 @@ const createWindow = () => {
     mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
   }
 
+  // Create tray icon
+  createTray();
 
+  // Handle window close event
+  mainWindow.on('close', (event) => {
+    // Prevent the window from being destroyed
+    event.preventDefault();
+    
+    // Hide the window instead
+    if (mainWindow) {
+      mainWindow.hide();
+    }
+  });
+};
 
+const createTray = () => {
   try {
     const icon = nativeImage.createFromDataURL(iconData);
     if (icon.isEmpty()) {
-      console.error(`Failed to load tray icon: ${iconPath}. Icon is empty.`);
+      console.error('Failed to load tray icon. Icon is empty.');
     } else {
-      const tray = new Tray(icon);
+      tray = new Tray(icon);
 
       // Set tooltip
       tray.setToolTip('Clockify Timesheet Monitor');
@@ -84,35 +101,47 @@ const createWindow = () => {
         {
           label: 'Show Window',
           click: () => {
-            mainWindow.show();
+            if (mainWindow) {
+              mainWindow.show();
+            } else {
+              createWindow();
+            }
+          }
+        },
+        {
+          label: 'Toggle Window',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show();
+            } else {
+              createWindow();
+            }
           }
         },
         { type: 'separator' },
-        { role: "quit" }
+        {
+          label: 'Exit',
+          click: () => {
+            // Force app to quit completely
+            app.exit(0);
+          }
+        }
       ]);
 
       tray.setContextMenu(contextMenu);
 
       // Handle tray click
       tray.on('click', () => {
-        if (process.platform === 'darwin') {
-          // On macOS, show the window on tray click
-          mainWindow.show();
+        if (mainWindow) {
+          mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show();
+        } else {
+          createWindow();
         }
       });
     }
   } catch (error) {
-    console.error(`Error creating tray icon from path ${iconPath}:`, error);
+    console.error('Error creating tray icon:', error);
   }
-
-  // Handle window close event
-  mainWindow.on('close', (event) => {
-    if (process.platform === 'darwin') {
-      // On macOS, just hide the window instead of closing
-      event.preventDefault();
-      mainWindow.hide();
-    }
-  });
 };
 
 // This method will be called when Electron has finished
@@ -120,6 +149,15 @@ const createWindow = () => {
 // Some APIs can only be used after this event occurs.
 app.on('ready', createWindow);
 
+// Prevent app from quitting when all windows are closed
+app.on('window-all-closed', () => {
+  // Don't quit the app when all windows are closed (keep running in background)
+  // Only quit explicitly when user chooses Exit from tray menu
+  if (process.platform !== 'darwin') {
+    // On macOS it's common for applications to stay open until explicitly quit
+    // For Windows/Linux, we'll keep the same behavior for consistency
+  }
+});
 
 app.on('activate', () => {
   // On OS X it's common to re-create a window in the app when the
@@ -128,9 +166,8 @@ app.on('activate', () => {
     createWindow();
   } else {
     // Show the window if it exists but is hidden
-    const windows = BrowserWindow.getAllWindows();
-    if (windows.length > 0) {
-      windows[0].show();
+    if (mainWindow) {
+      mainWindow.show();
     }
   }
 });
@@ -155,18 +192,17 @@ ipcMain.handle('open-popup', (event, arg) => {
 
 // Add these handlers before the end of the file
 ipcMain.handle('save-api-key', async (event, key: string) => {
-    store.set('apiKey', key);
+    (store as any).set('apiKey', key);
     return true;
 });
 
 ipcMain.handle('get-api-key', async () => {
-    return store.get('apiKey');
+    return (store as any).get('apiKey');
 });
 
 ipcMain.handle('close-window', () => {
-    const windows = BrowserWindow.getAllWindows();
-    if (windows.length > 0) {
-        windows[0].hide();
+    if (mainWindow) {
+        mainWindow.hide();
     }
 });
 
