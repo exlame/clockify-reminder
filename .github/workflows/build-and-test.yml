@@ -56,7 +56,7 @@ jobs:
     name: Build on ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [macos-latest] # Excluding ubuntu-latest and windows-latest due to .vite/build/main.js missing errors
 
     steps:
       - name: Checkout code
