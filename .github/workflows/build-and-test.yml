@@ -56,7 +56,7 @@ jobs:
     name: Build on ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
       - name: Checkout code
@@ -90,6 +90,9 @@ jobs:
             .vite
             out
           key: ${{ runner.os }}-electron-build-${{ hashFiles('**/*.ts', '**/*.tsx', '**/*.js') }}
+
+      - name: Build with Vite
+        run: npx vite build
 
       - name: Build application
         run: npm run make
