@@ -90,3 +90,6 @@ typings/
 
 # Electron-Forge
 out/
+/dist/assets/index-Bs1GYUeV.js
+/dist/assets/index-cA78DHNn.css
+/dist/index.html
