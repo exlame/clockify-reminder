@@ -14,7 +14,7 @@ A desktop application that reminds you to submit your timesheet in Clockify.
 ### Prerequisites
 
 - Node.js (version 14 or higher)
-- Yarn package manager
+- npm package manager
 
 ### Setup
 
@@ -26,12 +26,12 @@ A desktop application that reminds you to submit your timesheet in Clockify.
 
 2. Install dependencies
    ```bash
-   yarn
+   npm ci
    ```
 
 3. Start the development server
    ```bash
-   yarn start
+   npm start
    ```
 
 ### Building
@@ -40,10 +40,10 @@ To build the application for distribution:
 
 ```bash
 # Package the app
-yarn package
+npm run package
 
 # Create distributable installers
-yarn make
+npm run make
 ```
 
 ### Testing
@@ -52,13 +52,13 @@ The project uses Jest for testing. For more details, see [TESTING.md](TESTING.md
 
 ```bash
 # Run all tests
-yarn test
+npm test
 
 # Run tests in watch mode
-yarn test:watch
+npm run test:watch
 
 # Generate coverage report
-yarn test:coverage
+npm run test:coverage
 ```
 
 ## Configuration
@@ -71,4 +71,4 @@ The application can be configured using environment variables:
 
 ## License
 
-MIT 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)
