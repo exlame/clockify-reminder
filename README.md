@@ -13,7 +13,7 @@ A desktop application that reminds you to submit your timesheet in Clockify.
 
 ### Prerequisites
 
-- Node.js (version 14 or higher)
+- Node.js (version 22 or higher)
 - npm package manager
 
 ### Setup
