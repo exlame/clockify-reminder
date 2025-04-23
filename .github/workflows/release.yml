@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
         
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -67,18 +69,22 @@ jobs:
   create-release:
     needs: release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+        with:
+          fetch-depth: 0
+          
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
           
       - name: Create Release
-        id: create_release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             artifacts/**/*.exe
@@ -86,8 +92,20 @@ jobs:
             artifacts/**/*.zip
             artifacts/**/*.deb
             artifacts/**/*.rpm
+          body: |
+            ## Installation
+            
+            Download the appropriate installer for your operating system:
+            
+            - Windows: `.exe` file
+            - macOS: `.dmg` file
+            - Linux: `.deb` or `.rpm` file
+            
+            ## Manual Installation
+            
+            Alternatively, you can download the `.zip` file and extract it manually.
+          generate_release_notes: true
           draft: false
           prerelease: false
-          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
