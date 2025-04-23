@@ -1,6 +1,6 @@
 {
   "name": "clockify-reminder",
-  "productName": "Clockify reminder",
+  "productName": "ClockifyReminder",
   "version": "1.0.2",
   "description": "Clockify reminder",
   "main": ".vite/build/main.js",
@@ -57,5 +57,46 @@
     "electron-store": "^10.0.1",
     "update-electron-app": "^3.1.1"
   },
-  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+  "config": {
+    "forge": {
+      "packagerConfig": {
+        "executableName": "clockify-reminder",
+        "asar": true
+      },
+      "makers": [
+        {
+          "name": "@electron-forge/maker-squirrel",
+          "config": {
+            "name": "clockify_reminder"
+          }
+        },
+        {
+          "name": "@electron-forge/maker-zip",
+          "platforms": [
+            "darwin"
+          ]
+        },
+        {
+          "name": "@electron-forge/maker-deb",
+          "config": {
+            "options": {
+              "name": "clockify-reminder",
+              "productName": "ClockifyReminder",
+              "maintainer": "Danny Ouellet",
+              "homepage": "https://github.com/exlame/clockify-reminder"
+            }
+          }
+        },
+        {
+          "name": "@electron-forge/maker-rpm",
+          "config": {
+            "options": {
+              "name": "clockify-reminder",
+              "productName": "ClockifyReminder"
+            }
+          }
+        }
+      ]
+    }
+  }
 }
