@@ -14,13 +14,13 @@ The project uses:
 
 ```bash
 # Run all tests
-yarn test
+npm test
 
 # Run tests in watch mode
-yarn test:watch
+npm run test:watch
 
 # Generate coverage report
-yarn test:coverage
+npm run test:coverage
 ```
 
 ## Test Structure
